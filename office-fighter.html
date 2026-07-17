@@ -291,7 +291,7 @@ let vsT=0, resultT=0, contT=0, champT=0, titleSel=0, paused=false;
 const ATK = {
   punch:{su:5, act:4, rec:8, range:22, dmg:6, stun:13, kb:2.2, hy:-46, sfx:'hit'},
   kick: {su:9, act:5, rec:13, range:29, dmg:10, stun:18, kb:3.6, hy:-32, sfx:'kick'},
-  air:  {su:4, act:99, rec:0, range:20, dmg:8, stun:16, kb:3.0, hy:-40, sfx:'hit'}
+  air:  {su:4, act:99, rec:0, range:22, dmg:8, stun:16, kb:3.0, hy:-40, sfx:'hit'}
 };
 class Fighter {
   constructor(ci, x, face, cpu){
@@ -315,7 +315,7 @@ class Fighter {
     }
     if(!a) return null;
     if(this.st==='air'){
-      if(this.sT>=a.su && !this.grounded) return {x:this.x+(this.face>0?2:-2-a.range), y:this.y-30, w:a.range, h:26};
+      if(this.sT>=a.su && !this.grounded) return {x:this.x+(this.face>0?2:-2-a.range), y:this.y-32, w:a.range, h:30};
       return null;
     }
     if(this.sT>=a.su && this.sT<a.su+a.act)
@@ -340,7 +340,10 @@ class Fighter {
         this.vx = mv*this.c.spd;
         this.x += this.vx;
         this.st = mv? 'walk':'idle';
-        if(inp.u && this.landLag<=0){ this.vy=-this.c.jmp; this.grounded=false; this.st='jump'; this.sT=0; sfx.jump(); }
+        if(inp.u && this.landLag<=0){
+          this.vy=-this.c.jmp; this.grounded=false; this.st='jump'; this.sT=0; sfx.jump();
+          if(inp.pe||inp.ke){ this.st='air'; this.atk='air'; this.atkHit=false; sfx.whiff(); }
+        }
         else if(inp.pe){ this.startAtk('punch'); }
         else if(inp.ke){ this.startAtk('kick'); }
         else if(inp.se && this.cd<=0){ this.startSpecial(FF); }
@@ -349,7 +352,7 @@ class Fighter {
       case 'jump': {
         this.x += this.vx;
         this.vy += .25; this.y += this.vy;
-        if(inp.pe||inp.ke){ this.st='air'; this.sT=0; this.atk='air'; this.atkHit=false; }
+        if(inp.pe||inp.ke){ this.st='air'; this.sT=0; this.atk='air'; this.atkHit=false; sfx.whiff(); }
         if(this.y>=GY){ this.land(); }
         break;
       }
@@ -689,7 +692,11 @@ function drawFighter(p, blink){
   if(p.st==='kick' && p.sT>=ATK.kick.su && p.sT<ATK.kick.su+ATK.kick.act+3){
     rc(-7,-26,5,26,boss?sk:pn); rc(-8,-3,7,3,shoe);
     rc(2,-32,20,5,boss?sk:pn); rc(20,-33,6,5,shoe);   // extended kick
-  } else if(p.st==='jump'||p.st==='air'||(p.st==='ko'&&!p.grounded)){
+  } else if(p.st==='air'){
+    // flying kick: back leg tucked, front leg extended
+    rc(-7,-20,5,12,boss?sk:pn); rc(-8,-9,7,3,shoe);
+    rc(2,-28,17,5,boss?sk:pn); rc(17,-29,6,5,shoe);
+  } else if(p.st==='jump'||(p.st==='ko'&&!p.grounded)){
     rc(-7,-22,5,18,boss?sk:pn); rc(2,-20,5,16,boss?sk:pn);
     rc(-8,-6,7,3,shoe); rc(1,-5,7,3,shoe);
   } else {
@@ -716,6 +723,8 @@ function drawFighter(p, blink){
     rc(-10,-58,4,14,sk); rc(6,armY,4,6,sh); rc(6,armY+6,4,8,sk); // arm raised
   } else if(p.st==='hit'){
     rc(-11,armY-2,4,12,sk); rc(7,armY-2,4,12,sk);
+  } else if(p.st==='air'){
+    rc(-11,armY-4,4,10,sk); rc(7,armY-2,4,8,sk);
   } else {
     rc(-10,armY,4,6,sh); rc(-10,armY+6,4,8,sk);
     rc(6,armY,4,6,sh); rc(6,armY+6,4,8,sk);
@@ -1021,7 +1030,9 @@ function update(){
       if(location.hash.includes('demo')){ F=newFight(0,11,5); F.phase='play'; state='fight'; }
       if(location.hash.includes('ko')){ F=newFight(0,11,5); state='fight'; F.phase='ko'; F.phaseT=-100000; F.msg='K.O.!'; F.winner=0;
         F.p[1].hp=0; F.p[1].st='ko'; F.p[1].grounded=true; F.p[0].st='win'; }
-      if(location.hash.includes('sel')){ state='select'; } } break;
+      if(location.hash.includes('sel')){ state='select'; }
+      if(location.hash.includes('air')){ F=newFight(0,11,5); state='fight'; F.phase='intro'; F.phaseT=-100000;
+        const a=F.p[0]; a.x=190; a.y=GY-34; a.grounded=false; a.st='air'; a.sT=10; a.atk='air'; F.p[1].x=230; } } break;
     case 'title': updateTitle(); break;
     case 'select': updateSelect(); break;
     case 'vs': updateVS(); break;
