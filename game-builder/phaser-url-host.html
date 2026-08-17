@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Phaser URL Host</title>
+<style>
+html,body{margin:0;background:#090d18;color:#eef3ff;font-family:system-ui,sans-serif}
+#wrap{max-width:1100px;margin:auto;padding:14px}
+#game{border:1px solid #26324c;background:#050812;min-height:200px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+button{padding:8px 12px;cursor:pointer}
+textarea{width:100%;min-height:280px;box-sizing:border-box;background:#111827;color:#dce8ff;border:1px solid #34405e;padding:10px;font:12px ui-monospace,SFMono-Regular,Menlo,monospace}
+#status{white-space:pre-wrap;color:#ffb9b9;min-height:1.4em}
+.hint{font-size:13px;color:#aab8d4}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h2>Phaser URL Host</h2>
+  <div id="game"></div>
+  <div class="bar">
+    <button id="run">Run code</button>
+    <button id="copy">Copy playable URL</button>
+  </div>
+  <div id="status"></div>
+  <p class="hint">Trusted local prototype: JavaScript from the URL hash is executed directly. Public hosting should isolate shared game code in a sandboxed origin/iframe.</p>
+  <details>
+    <summary>Game source</summary>
+    <textarea id="src" spellcheck="false"></textarea>
+  </details>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/phaser@4.2.1/dist/phaser.min.js"></script>
+<script>
+(()=>{
+  const $=id=>document.getElementById(id),status=$("status"),ta=$("src");
+  let currentGame=null;
+
+  function enc(s){
+    const b=new TextEncoder().encode(s);
+    let x="";for(const n of b)x+=String.fromCharCode(n);
+    return btoa(x).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+  }
+  function dec(s){
+    let b=s.replace(/-/g,"+").replace(/_/g,"/");
+    b+="=".repeat((4-b.length%4)%4);
+    const x=atob(b);
+    return new TextDecoder().decode(Uint8Array.from(x,c=>c.charCodeAt(0)));
+  }
+  function fromHash(){
+    if(!location.hash)return "";
+    const raw=location.hash.slice(1),p=raw.indexOf(".");
+    if(p<0||raw.slice(0,p)!=="v1")throw Error("URL_ERROR: expected #v1.<base64url>");
+    return dec(raw.slice(p+1));
+  }
+  function run(code){
+    status.textContent="";
+    try{
+      if(currentGame){currentGame.destroy(true);currentGame=null}
+      $("game").innerHTML="";
+      const fn=new Function("Phaser","mount","setGame","setStatus",code);
+      fn(Phaser,$("game"),g=>currentGame=g,msg=>status.textContent=msg||"");
+    }catch(e){status.textContent=String(e.stack||e)}
+  }
+
+  try{ta.value=fromHash()}catch(e){status.textContent=String(e.message||e)}
+  if(ta.value)run(ta.value);
+
+  $("run").onclick=()=>run(ta.value);
+  $("copy").onclick=async()=>{
+    const url=location.href.split("#")[0]+"#v1."+enc(ta.value);
+    await navigator.clipboard.writeText(url);
+    status.textContent=`Copied playable URL (${url.length} chars)`;
+  };
+})();
+</script>
+</body>
+</html>
