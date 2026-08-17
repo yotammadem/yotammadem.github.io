@@ -29,8 +29,11 @@ ul{padding-left:1.4em}
 <h2 style="margin-top:0;border:0;padding-top:0">Hard output requirements</h2>
 <p><strong>These rules are mandatory for every generated game.</strong></p>
 <ul>
-<li><strong>Keep the final JavaScript payload as compact as reasonably possible.</strong> Use short local identifiers, helper functions, arrays/grids instead of repeated declarations, no comments, and no unnecessary whitespace. Avoid verbose architecture and abstractions.</li>
-<li>Correctness comes first, but after the game logic is correct, <strong>compress the source representation aggressively without making it fragile</strong>.</li>
+<li><strong>VALIDITY IS MANDATORY AND HAS PRIORITY OVER SIZE.</strong> First create ordinary valid JavaScript. Never perform risky manual code-golf transformations that can alter syntax.</li>
+<li><strong>Before encoding the URL, syntax-check the exact final JavaScript payload.</strong> If a JavaScript runtime/tool is available, run an actual syntax check (for example <code>node --check</code> or equivalent). Do not encode code that has not passed the available validation step.</li>
+<li><strong>Only after validation, make the payload compact conservatively.</strong> Remove comments and unnecessary whitespace, use short local identifiers where safe, reuse helper functions, and prefer arrays/grids over repeated declarations.</li>
+<li><strong>Do not manually rewrite control flow merely to save characters.</strong> In particular, do not mutate valid <code>if/else</code>, braces, operators, strings, or delimiters into shorter forms unless a real minifier/tool performs the transformation.</li>
+<li>If no reliable minifier or syntax-checking tool is available, <strong>return longer valid code rather than shorter uncertain code.</strong></li>
 <li>The playable URL format is exactly:<br><code>https://yotammadem.github.io/game-builder/phaser-url-host.html#v1.&lt;base64url-javascript&gt;</code></li>
 <li><strong>The separator after <code>v1</code> is a period (<code>.</code>).</strong> Never use a comma, colon, slash, question mark, or any other separator.</li>
 <li>The payload after <code>#v1.</code> must be <strong>Base64URL</strong>: use <code>-</code> and <code>_</code> instead of <code>+</code> and <code>/</code>, and omit trailing <code>=</code> padding.</li>
@@ -427,10 +430,106 @@ this.events.on(&quot;player-died&quot;,()=&gt;{});</code></pre>
 <p>The guiding principle is:</p>
 <blockquote>Phaser is the game language. JavaScript is the scripting language. Keep the host small.</blockquote>
 
+
+<h2>Do not manually corrupt code while compacting</h2>
+<p>Compactness is an optimization, not permission to invent malformed JavaScript. Never produce transformations like:</p>
+<pre><code>if(!opts.length!else)opts=all</code></pre>
+<p>Keep the valid form:</p>
+<pre><code>if(!opts.length)opts=all;</code></pre>
+<p>Also never place hidden/control characters inside JavaScript source. If a generated character is not normal source text, remove it and revalidate before encoding.</p>
+
+<h2>Validation workflow when no JavaScript runtime is available</h2>
+<p>If a real JavaScript parser or runtime such as Node is available, use it. If it is <strong>not</strong> available, follow this fallback instead:</p>
+<ol>
+<li>Write ordinary, formatted, conservative JavaScript first.</li>
+<li>Do <strong>not</strong> perform manual code-golf or syntax-rewriting.</li>
+<li>Prefer simple syntax and explicit braces for non-trivial control flow.</li>
+<li>Run the lightweight Python structural check below if Python is available. This is only a <strong>heuristic guard</strong>, not a real JavaScript parser.</li>
+<li>If the structural check passes, encode the exact checked source bytes as Base64URL.</li>
+<li>Never edit the Base64URL payload manually.</li>
+<li>If uncertain whether a shortening transformation preserves syntax, keep the longer form.</li>
+</ol>
+
+<pre><code>import base64
+
+HOST="https://yotammadem.github.io/game-builder/phaser-url-host.html#v1."
+
+def structural_check(s):
+    # Heuristic only: reject unexpected control chars and check balanced
+    # (), [] and {} while respecting ordinary quoted strings.
+    for c in s:
+        if ord(c)&lt;32 and c not in "\n\r\t":
+            raise SyntaxError(f"Unexpected control character U+{ord(c):04X}")
+
+    st=[]
+    pairs={')':'(',']':'[','}':'{'}
+    q=None
+    esc=False
+    i=0
+
+    while i&lt;len(s):
+        c=s[i]
+
+        if q:
+            if esc:
+                esc=False
+            elif c=="\\":
+                esc=True
+            elif c==q:
+                q=None
+            i+=1
+            continue
+
+        # Skip // comments.
+        if c=="/" and i+1&lt;len(s) and s[i+1]=="/":
+            j=s.find("\n",i+2)
+            i=len(s) if j&lt;0 else j+1
+            continue
+
+        # Skip /* ... */ comments.
+        if c=="/" and i+1&lt;len(s) and s[i+1]=="*":
+            j=s.find("*/",i+2)
+            if j&lt;0:
+                raise SyntaxError("Unclosed block comment")
+            i=j+2
+            continue
+
+        # This fallback deliberately avoids parsing template literals.
+        if c=="`":
+            raise SyntaxError(
+                "Template literals are not allowed in fallback-validation mode; "
+                "use normal quoted strings instead."
+            )
+
+        if c in ("'",'"'):
+            q=c
+        elif c in "([{":
+            st.append(c)
+        elif c in ")]}":
+            if not st or st.pop()!=pairs[c]:
+                raise SyntaxError(f"Mismatched {c}")
+
+        i+=1
+
+    if q:
+        raise SyntaxError("Unclosed string")
+    if st:
+        raise SyntaxError("Unbalanced brackets")
+
+def build_url(js):
+    structural_check(js)
+    payload=base64.urlsafe_b64encode(js.encode("utf-8")).decode().rstrip("=")
+    return HOST+payload
+</code></pre>
+
+<p><strong>Important:</strong> the fallback above cannot prove that JavaScript is syntactically valid. It catches common generation damage such as hidden control characters, broken quotes, and mismatched brackets. Therefore, when using fallback mode, favor boring, explicit JavaScript over clever compact syntax.</p>
 <h2>Final output checklist — mandatory</h2>
 <p>Before returning the result, verify all of the following:</p>
 <ul>
 <li>The game code runs as Phaser 4 JavaScript.</li>
+<li>The <strong>exact JavaScript bytes being Base64URL-encoded</strong> contain no unexpected control characters. Only normal printable source plus standard whitespace such as space, tab and newline should be present.</li>
+<li>If a real JavaScript parser/runtime is available, the exact final source has passed a syntax check <strong>after</strong> all compaction/minification and <strong>before</strong> Base64URL encoding. If not, the fallback structural check has been run and no risky manual minification has been performed.</li>
+
 <li>The final payload code has been made compact: no comments, no needless whitespace, no duplicated boilerplate, and short local names where safe.</li>
 <li>The URL begins exactly with <code>https://yotammadem.github.io/game-builder/phaser-url-host.html#v1.</code></li>
 <li>There is a literal <strong>period</strong> between <code>v1</code> and the payload.</li>
