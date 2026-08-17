@@ -24,6 +24,20 @@ ul{padding-left:1.4em}
 <body>
 <main>
 <p class="small">Tiny Phaser Games skill • Phaser 4 • optimized for AI-generated small 2D games</p>
+
+<section style="border:1px solid #48638f;background:#0f1a2e;padding:16px 18px;border-radius:12px;margin:18px 0 28px">
+<h2 style="margin-top:0;border:0;padding-top:0">Hard output requirements</h2>
+<p><strong>These rules are mandatory for every generated game.</strong></p>
+<ul>
+<li><strong>Keep the final JavaScript payload as compact as reasonably possible.</strong> Use short local identifiers, helper functions, arrays/grids instead of repeated declarations, no comments, and no unnecessary whitespace. Avoid verbose architecture and abstractions.</li>
+<li>Correctness comes first, but after the game logic is correct, <strong>compress the source representation aggressively without making it fragile</strong>.</li>
+<li>The playable URL format is exactly:<br><code>https://yotammadem.github.io/game-builder/phaser-url-host.html#v1.&lt;base64url-javascript&gt;</code></li>
+<li><strong>The separator after <code>v1</code> is a period (<code>.</code>).</strong> Never use a comma, colon, slash, question mark, or any other separator.</li>
+<li>The payload after <code>#v1.</code> must be <strong>Base64URL</strong>: use <code>-</code> and <code>_</code> instead of <code>+</code> and <code>/</code>, and omit trailing <code>=</code> padding.</li>
+<li>When asked for a playable game, return the <strong>complete playable URL</strong>, not only the JavaScript source.</li>
+</ul>
+</section>
+
 <p>  shooters, Breakout/Pong-like games, simple arcade games, collectathons,</p>
 <p>  and small puzzle/action games.</p>
 <h1>Tiny Phaser Games — Phaser 4 Skill</h1>
@@ -412,6 +426,19 @@ this.events.on(&quot;player-died&quot;,()=&gt;{});</code></pre>
 <p>8. When the user asks for a change, modify JavaScript directly rather than extending a custom language.</p>
 <p>The guiding principle is:</p>
 <blockquote>Phaser is the game language. JavaScript is the scripting language. Keep the host small.</blockquote>
+
+<h2>Final output checklist — mandatory</h2>
+<p>Before returning the result, verify all of the following:</p>
+<ul>
+<li>The game code runs as Phaser 4 JavaScript.</li>
+<li>The final payload code has been made compact: no comments, no needless whitespace, no duplicated boilerplate, and short local names where safe.</li>
+<li>The URL begins exactly with <code>https://yotammadem.github.io/game-builder/phaser-url-host.html#v1.</code></li>
+<li>There is a literal <strong>period</strong> between <code>v1</code> and the payload.</li>
+<li>The payload is valid Base64URL and contains no standard Base64 <code>+</code> or <code>/</code> characters.</li>
+<li>The returned URL contains the complete game payload and is directly playable.</li>
+</ul>
+<p><strong>Do not substitute a different URL pattern even if another pattern looks equivalent.</strong></p>
+
 </main>
 </body>
 </html>
