@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tiny Phaser Games Skill</title>
+<meta name="description" content="A compact Phaser 4 skill for AI-generated tiny 2D browser games.">
+<style>
+:root{color-scheme:dark}
+body{margin:0;background:#0b1020;color:#eaf0ff;font:16px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:900px;margin:0 auto;padding:32px 20px 80px}
+h1,h2,h3{line-height:1.2;color:#fff;margin-top:1.8em}
+h1{font-size:2.1rem;margin-top:0}
+h2{font-size:1.45rem;border-top:1px solid #26324a;padding-top:1.2em}
+p,li{color:#d8e1f2}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#151d30;color:#dff3ff;padding:.1em .3em;border-radius:4px}
+pre{overflow:auto;background:#111827;border:1px solid #26334d;padding:14px;border-radius:10px}
+pre code{background:none;padding:0;color:#dff3ff}
+blockquote{margin:1em 0;padding:.7em 1em;border-left:4px solid #6ea8fe;background:#111827;color:#fff}
+ul{padding-left:1.4em}
+.small{color:#94a3b8;font-size:.9rem}
+</style>
+</head>
+<body>
+<main>
+<p class="small">Tiny Phaser Games skill • Phaser 4 • optimized for AI-generated small 2D games</p>
+<p>  shooters, Breakout/Pong-like games, simple arcade games, collectathons,</p>
+<p>  and small puzzle/action games.</p>
+<h1>Tiny Phaser Games — Phaser 4 Skill</h1>
+<p>Use Phaser 4 directly. Do not invent a custom game DSL unless the user explicitly asks for one.</p>
+<p>The goal is to generate **small, reliable, self-contained 2D games** that can run inside a single HTML page and can later be minified/compressed into a URL payload.</p>
+<p>Prefer simple Phaser APIs and compact game logic over abstractions, frameworks, or architecture intended for large games.</p>
+<h1>1. Minimal game structure</h1>
+<p>For most tiny games, use one Scene:</p>
+<pre><code class="language-js">class G extends Phaser.Scene{
+  preload(){}
+  create(){}
+  update(t,dt){}
+}
+
+new Phaser.Game({
+  type:Phaser.AUTO,
+  width:800,
+  height:500,
+  parent:&quot;game&quot;,
+  backgroundColor:&quot;#111827&quot;,
+  physics:{
+    default:&quot;arcade&quot;,
+    arcade:{gravity:{y:0},debug:false}
+  },
+  scene:G
+});</code></pre>
+<p>Use multiple Scenes only when there is a real need for separate menus, loading screens, overlays, or level transitions.</p>
+<p>Scene lifecycle:</p>
+<pre><code class="language-text">init -&gt; preload -&gt; create -&gt; update loop</code></pre>
+<p>Useful scene operations:</p>
+<pre><code class="language-js">this.scene.restart()
+this.scene.start(&quot;OtherScene&quot;,{score})
+this.scene.pause()
+this.scene.resume()</code></pre>
+<h1>2. Prefer Arcade Physics</h1>
+<p>For the target class of games, prefer **Arcade Physics** unless a mechanic genuinely needs Matter physics.</p>
+<p>Dynamic object:</p>
+<pre><code class="language-js">const p=this.physics.add.sprite(100,100,&quot;player&quot;);
+p.setVelocity(100,0);
+p.setBounce(1);
+p.setCollideWorldBounds(true);</code></pre>
+<p>Static object:</p>
+<pre><code class="language-js">const wall=this.physics.add.staticImage(300,200,&quot;wall&quot;);</code></pre>
+<p>Static group:</p>
+<pre><code class="language-js">const walls=this.physics.add.staticGroup();</code></pre>
+<p>Collision:</p>
+<pre><code class="language-js">this.physics.add.collider(player,walls);</code></pre>
+<p>Overlap without physical separation:</p>
+<pre><code class="language-js">this.physics.add.overlap(player,coins,(p,c)=&gt;{
+  c.destroy();
+});</code></pre>
+<p>Move toward target:</p>
+<pre><code class="language-js">this.physics.moveToObject(enemy,player,100);</code></pre>
+<p>Important body state:</p>
+<pre><code class="language-js">body.velocity
+body.blocked.down
+body.touching
+body.allowGravity
+body.immovable</code></pre>
+<p>Platformer jump:</p>
+<pre><code class="language-js">if(jumpPressed&amp;&amp;player.body.blocked.down)
+  player.setVelocityY(-420);</code></pre>
+<h1>3. Input</h1>
+<p>Keyboard:</p>
+<pre><code class="language-js">this.cursors=this.input.keyboard.createCursorKeys();
+this.keys=this.input.keyboard.addKeys(&quot;W,A,S,D,SPACE&quot;);</code></pre>
+<p>Continuous movement:</p>
+<pre><code class="language-js">if(this.cursors.left.isDown) player.setVelocityX(-160);
+else if(this.cursors.right.isDown) player.setVelocityX(160);
+else player.setVelocityX(0);</code></pre>
+<p>Single key press:</p>
+<pre><code class="language-js">if(Phaser.Input.Keyboard.JustDown(this.cursors.space)){
+  // fire / jump / action
+}</code></pre>
+<p>Pointer / touch:</p>
+<pre><code class="language-js">this.input.on(&quot;pointerdown&quot;,p=&gt;{
+  console.log(p.worldX,p.worldY);
+});</code></pre>
+<p>Interactive object:</p>
+<pre><code class="language-js">sprite.setInteractive();
+sprite.on(&quot;pointerdown&quot;,()=&gt;{});</code></pre>
+<p>Prefer controls that work with both arrows and WASD when reasonable.</p>
+<h1>4. Visual objects</h1>
+<p>Use built-in shapes when assets are unnecessary.</p>
+<p>Rectangle:</p>
+<pre><code class="language-js">this.add.rectangle(x,y,w,h,0xff0000);</code></pre>
+<p>Circle:</p>
+<pre><code class="language-js">this.add.circle(x,y,r,0xffff00);</code></pre>
+<p>Ellipse:</p>
+<pre><code class="language-js">this.add.ellipse(x,y,w,h,0xff66aa);</code></pre>
+<p>Triangle:</p>
+<pre><code class="language-js">this.add.triangle(x,y,0,s,s/2,0,s,s,0xffffff);</code></pre>
+<p>Star:</p>
+<pre><code class="language-js">this.add.star(x,y,5,8,16,0xffff00);</code></pre>
+<p>Text:</p>
+<pre><code class="language-js">this.add.text(10,10,&quot;Score: 0&quot;,{
+  fontFamily:&quot;system-ui&quot;,
+  fontSize:&quot;20px&quot;,
+  color:&quot;#fff&quot;
+});</code></pre>
+<p>Useful visual methods:</p>
+<pre><code class="language-js">o.setPosition(x,y)
+o.setScale(1.2)
+o.setRotation(radians)
+o.setAngle(degrees)
+o.setAlpha(.5)
+o.setDepth(10)
+o.setFlipX(true)
+o.setTint(0xff0000)</code></pre>
+<p>For HUD elements that should stay fixed while the camera moves:</p>
+<pre><code class="language-js">hud.setScrollFactor(0).setDepth(1000);</code></pre>
+<h1>5. Sprites and assets</h1>
+<p>Load images in <code>preload()</code>:</p>
+<pre><code class="language-js">this.load.image(&quot;ship&quot;,&quot;assets/ship.png&quot;);</code></pre>
+<p>Spritesheet:</p>
+<pre><code class="language-js">this.load.spritesheet(&quot;hero&quot;,&quot;assets/hero.png&quot;,{
+  frameWidth:32,
+  frameHeight:48
+});</code></pre>
+<p>Audio:</p>
+<pre><code class="language-js">this.load.audio(&quot;coin&quot;,&quot;assets/coin.mp3&quot;);</code></pre>
+<p>Create:</p>
+<pre><code class="language-js">this.add.image(x,y,&quot;ship&quot;);
+this.add.sprite(x,y,&quot;hero&quot;);</code></pre>
+<p>If the game can be expressed clearly with shapes, prefer shapes for prototypes because they remove asset dependencies.</p>
+<h1>6. Animation</h1>
+<p>Spritesheet animation:</p>
+<pre><code class="language-js">this.anims.create({
+  key:&quot;walk&quot;,
+  frames:this.anims.generateFrameNumbers(&quot;hero&quot;,{start:0,end:7}),
+  frameRate:10,
+  repeat:-1
+});
+
+player.play(&quot;walk&quot;);</code></pre>
+<p>For simple movement or visual effects, prefer tweens:</p>
+<pre><code class="language-js">this.tweens.add({
+  targets:coin,
+  y:&quot;-=8&quot;,
+  duration:400,
+  yoyo:true,
+  repeat:-1,
+  ease:&quot;Sine.easeInOut&quot;
+});</code></pre>
+<p>Useful tween properties:</p>
+<pre><code class="language-text">x y scale scaleX scaleY alpha angle rotation</code></pre>
+<p>Pulse:</p>
+<pre><code class="language-js">this.tweens.add({
+  targets:enemy,
+  scaleX:1.1,
+  scaleY:.9,
+  duration:180,
+  yoyo:true,
+  repeat:-1
+});</code></pre>
+<h1>7. Groups</h1>
+<p>Use groups for collections such as enemies, coins, bullets, and bricks.</p>
+<p>Dynamic physics group:</p>
+<pre><code class="language-js">this.enemies=this.physics.add.group();</code></pre>
+<p>Static group:</p>
+<pre><code class="language-js">this.walls=this.physics.add.staticGroup();</code></pre>
+<p>Get children:</p>
+<pre><code class="language-js">this.enemies.getChildren()</code></pre>
+<p>Object pooling is useful for bullets:</p>
+<pre><code class="language-js">const bullet=bullets.get(x,y);
+if(bullet){
+  bullet.setActive(true).setVisible(true);
+}</code></pre>
+<p>For small games, destroying objects is acceptable unless there are many rapidly-created projectiles.</p>
+<h1>8. Camera</h1>
+<p>Follow player:</p>
+<pre><code class="language-js">const cam=this.cameras.main;
+cam.startFollow(player,true,.1,.1);
+cam.setBounds(0,0,worldW,worldH);</code></pre>
+<p>World bounds:</p>
+<pre><code class="language-js">this.physics.world.setBounds(0,0,worldW,worldH);</code></pre>
+<p>Effects:</p>
+<pre><code class="language-js">cam.shake(120,.01);
+cam.fadeOut(500);
+cam.fadeIn(500);
+cam.setZoom(1.5);</code></pre>
+<p>For platformers and scrolling games, usually set both physics world bounds and camera bounds.</p>
+<h1>9. Timers</h1>
+<p>One-shot:</p>
+<pre><code class="language-js">this.time.delayedCall(1000,()=&gt;{
+  // action
+});</code></pre>
+<p>Loop:</p>
+<pre><code class="language-js">this.time.addEvent({
+  delay:1000,
+  loop:true,
+  callback:()=&gt;spawnEnemy()
+});</code></pre>
+<p>Use timers for:</p>
+<ul>
+<li>spawning</li>
+<li>cooldowns</li>
+<li>temporary invulnerability</li>
+<li>enemy decisions</li>
+<li>level events</li>
+<li>delayed restart</li>
+</ul>
+<h1>10. Sound</h1>
+<p>Fire-and-forget effect:</p>
+<pre><code class="language-js">this.sound.play(&quot;coin&quot;);</code></pre>
+<p>Music:</p>
+<pre><code class="language-js">this.music=this.sound.add(&quot;music&quot;,{
+  loop:true,
+  volume:.4
+});
+this.music.play();</code></pre>
+<p>Remember that browsers may block audio until the first user interaction.</p>
+<h1>11. Compact maps</h1>
+<p>For maze/platform/grid games, a string map is often the most compact representation:</p>
+<pre><code class="language-js">const map=[
+&quot;################&quot;,
+&quot;#P....#....E...#&quot;,
+&quot;#.##..#........#&quot;,
+&quot;################&quot;
+];</code></pre>
+<p>Parse it:</p>
+<pre><code class="language-js">for(let y=0;y&lt;map.length;y++)
+for(let x=0;x&lt;map[y].length;x++){
+  const c=map[y][x];
+  const px=x*TILE+TILE/2;
+  const py=y*TILE+TILE/2;
+
+  if(c==&quot;#&quot;) addWall(px,py);
+  if(c==&quot;P&quot;) addPlayer(px,py);
+  if(c==&quot;E&quot;) addEnemy(px,py);
+}</code></pre>
+<p>Prefer this over verbose arrays of coordinates when the level is naturally tile-based.</p>
+<p>Use Phaser Tilemaps only when they provide real value. For tiny AI-generated games, a string grid is often simpler and smaller.</p>
+<h1>12. Useful game patterns</h1>
+<h2>Four-way arcade movement</h2>
+<pre><code class="language-js">let vx=0,vy=0;
+
+if(left)vx=-speed;
+else if(right)vx=speed;
+else if(up)vy=-speed;
+else if(down)vy=speed;
+
+player.setVelocity(vx,vy);</code></pre>
+<h2>Platformer</h2>
+<pre><code class="language-js">player.setVelocityX(left?-speed:right?speed:0);
+
+if(jump&amp;&amp;player.body.blocked.down)
+  player.setVelocityY(-jumpSpeed);</code></pre>
+<h2>Chasing enemy</h2>
+<pre><code class="language-js">this.physics.moveToObject(enemy,player,speed);</code></pre>
+<p>Do not use pure chasing for maze enemies unless that behavior is intended; it can cause enemies to pile up or stick against walls.</p>
+<h2>Maze enemy decisions</h2>
+<p>A good maze-enemy pattern is:</p>
+<p>1. Continue in the current corridor direction.</p>
+<p>2. At a decision point, find legal directions.</p>
+<p>3. Avoid immediate reversal unless necessary.</p>
+<p>4. Usually choose the legal direction that moves closer to the player.</p>
+<p>5. Sometimes choose another legal direction to create unpredictability.</p>
+<p>Example:</p>
+<pre><code class="language-js">function chooseDir(enemy,player,legal){
+  const reverse={L:&quot;R&quot;,R:&quot;L&quot;,U:&quot;D&quot;,D:&quot;U&quot;}[enemy.dir];
+  let a=legal.filter(d=&gt;d!==reverse);
+  if(!a.length)a=legal;
+
+  if(Math.random()&lt;.3)
+    return Phaser.Utils.Array.GetRandom(a);
+
+  return a.sort((x,y)=&gt;
+    distAfter(enemy,x,player)-distAfter(enemy,y,player)
+  )[0];
+}</code></pre>
+<h2>Separation</h2>
+<p>If enemies should not stack exactly on top of each other, add mild separation or make slightly different decisions rather than making all enemies continuously chase the exact player position.</p>
+<h2>Respawning a round</h2>
+<p>Store initial positions:</p>
+<pre><code class="language-js">enemy.spawnX=enemy.x;
+enemy.spawnY=enemy.y;</code></pre>
+<p>Reset:</p>
+<pre><code class="language-js">enemy.setPosition(enemy.spawnX,enemy.spawnY);
+enemy.body.setVelocity(0,0);</code></pre>
+<p>If a player death starts a new round, reset all relevant enemies as well as the player.</p>
+<h1>13. Game state</h1>
+<p>For tiny games, simple Scene fields are preferred:</p>
+<pre><code class="language-js">this.score=0;
+this.lives=3;</code></pre>
+<p>When state changes:</p>
+<pre><code class="language-js">this.score++;
+scoreText.setText(&quot;Score: &quot;+this.score);</code></pre>
+<p>Avoid introducing state-management libraries.</p>
+<h1>14. Win / lose conditions</h1>
+<p>Examples:</p>
+<p>All collectibles gone:</p>
+<pre><code class="language-js">if(coins.countActive(true)===0) win();</code></pre>
+<p>All enemies destroyed:</p>
+<pre><code class="language-js">if(enemies.countActive(true)===0) win();</code></pre>
+<p>Lives exhausted:</p>
+<pre><code class="language-js">if(--this.lives&lt;=0) gameOver();</code></pre>
+<p>Do not require a goal object if the actual game rule is simply completion of collectibles/enemies/etc.</p>
+<h1>15. Events and callbacks</h1>
+<p>Phaser systems are event emitters.</p>
+<p>Examples:</p>
+<pre><code class="language-js">this.input.on(&quot;pointerdown&quot;,fn);
+sprite.on(&quot;pointerdown&quot;,fn);</code></pre>
+<p>Custom events:</p>
+<pre><code class="language-js">this.events.emit(&quot;player-died&quot;);
+this.events.on(&quot;player-died&quot;,()=&gt;{});</code></pre>
+<p>For a tiny single-Scene game, direct functions are often simpler than creating a large event architecture.</p>
+<h1>16. Keep generated game code small</h1>
+<p>The final game may be encoded into a URL, so compactness matters.</p>
+<p>However:</p>
+<p>1. First write correct, understandable code.</p>
+<p>2. Reuse helper functions.</p>
+<p>3. Prefer short local names where obvious.</p>
+<p>4. Prefer arrays / grids over repeated object declarations.</p>
+<p>5. Avoid comments in the final payload unless useful for debugging.</p>
+<p>6. Avoid unnecessary whitespace in the final payload.</p>
+<p>7. Minify automatically if the host supports it.</p>
+<p>8. Compress before Base64URL encoding when possible.</p>
+<p>Do **not** sacrifice correctness for manual code-golf tricks.</p>
+<p>Good:</p>
+<pre><code class="language-js">const addWall=(x,y)=&gt;{
+  const w=this.add.rectangle(x,y,T,T,0x17406d);
+  this.physics.add.existing(w,true);
+  walls.add(w);
+};</code></pre>
+<p>Avoid generating dozens of repeated wall declarations.</p>
+<h1>17. Keep one HTML host, game code as payload</h1>
+<p>The host should ideally own:</p>
+<ul>
+<li>Phaser loading</li>
+<li>payload decoding</li>
+<li>optional decompression</li>
+<li>error display</li>
+<li>sandboxing</li>
+<li>start/restart controls</li>
+</ul>
+<p>The payload should contain only game-specific JavaScript.</p>
+<p>Conceptually:</p>
+<pre><code class="language-text">HTML host
+  -&gt; decode payload
+  -&gt; execute game script
+  -&gt; game script creates Phaser.Game</code></pre>
+<p>For local prototyping it is acceptable to run trusted generated code directly.</p>
+<p>For a public site executing arbitrary shared game code, **do not execute payload JavaScript with access to the host page&#x27;s origin**. Run untrusted game code in a sandboxed iframe or isolated origin and expose only the capabilities the game needs.</p>
+<h1>18. Reliability rules for AI-generated games</h1>
+<p>Before returning a game:</p>
+<ul>
+<li>Ensure every referenced asset key is loaded.</li>
+<li>Ensure every collision target has a physics body.</li>
+<li>Ensure static bodies are refreshed after resizing/scaling if necessary.</li>
+<li>Ensure the player cannot immediately respawn into an enemy.</li>
+<li>Ensure reset logic restores all actors relevant to a new round.</li>
+<li>Ensure a win condition is actually reachable.</li>
+<li>Ensure no required collectible is placed inside a wall.</li>
+<li>Ensure maze enemies have a legal escape from their spawn.</li>
+<li>Ensure a game can restart without duplicate event handlers or stale objects.</li>
+<li>Prefer straightforward code over clever abstractions.</li>
+</ul>
+<p>When modifying an existing game, change the game code first. Only propose a host/runtime change when Phaser itself or browser isolation truly requires one.</p>
+<h1>19. Target game classes</h1>
+<p>This skill is optimized for:</p>
+<ul>
+<li>Pac-Man-like maze games</li>
+<li>Mario-like platformers</li>
+<li>Breakout</li>
+<li>Pong</li>
+<li>Space Invaders</li>
+<li>Asteroids-like games</li>
+<li>top-down shooters</li>
+<li>simple tower-defense variants</li>
+<li>collectathons</li>
+<li>Frogger-like games</li>
+<li>simple racing / avoidance games</li>
+<li>small action puzzles</li>
+</ul>
+<p>If a requested mechanic does not fit the patterns above, still use Phaser directly and implement it with normal JavaScript rather than inventing a new DSL keyword.</p>
+<h1>20. Preferred authoring workflow</h1>
+<p>When asked to create a game:</p>
+<p>1. Clarify only if the core game concept is genuinely ambiguous.</p>
+<p>2. Choose the simplest Phaser mechanics that express the request.</p>
+<p>3. Write a playable version.</p>
+<p>4. Keep it self-contained.</p>
+<p>5. Use shapes first unless assets materially improve the game.</p>
+<p>6. Test game-state transitions mentally: start, play, collision, death, reset, win.</p>
+<p>7. Return the game source / playable URL format expected by the host.</p>
+<p>8. When the user asks for a change, modify JavaScript directly rather than extending a custom language.</p>
+<p>The guiding principle is:</p>
+<blockquote>Phaser is the game language. JavaScript is the scripting language. Keep the host small.</blockquote>
+</main>
+</body>
+</html>
